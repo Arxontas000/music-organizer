@@ -1,0 +1,15 @@
+node_modules/
+music-ui/node_modules/
+
+**/__pycache__/
+*.pyc
+
+.venv/
+.env
+
+dist/
+music-ui/dist/
+
+db.sqlite3
+
+.idea/
