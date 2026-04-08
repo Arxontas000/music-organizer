@@ -3,6 +3,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .redis_client import get_cache, set_cache
+from .tasks import scan_folder_task
+from celery.result import AsyncResult
 
 from .scanner import group_by_genre, preview_by_genre, scan_folder
 
@@ -53,10 +55,12 @@ class ScanView(APIView):
         if error:
             return error
 
-        tracks = get_cached_scan(path)
-        grouped = group_by_genre(tracks)
+        task = scan_folder_task.delay(path)
 
-        return Response({"grouped": grouped})
+        return Response({
+            "task_id": task.id,
+            "status": "started",
+        })
 
 
 class PreviewView(APIView):
@@ -70,4 +74,12 @@ class PreviewView(APIView):
 
         return Response({"preview": preview})
 
+class TaskStatusView(APIView):
+    def get(self, request, task_id):
+        result = AsyncResult(task_id)
 
+        return Response({
+            "task_id": task_id,
+            "status": result.status,
+            "result": result.result if result.ready() else None
+        })

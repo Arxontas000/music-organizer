@@ -44,5 +44,23 @@ services:
     depends_on:
       - backend
 
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: music-celery
+    working_dir: /app
+    command: celery -A config worker --loglevel=info
+    volumes:
+      - .:/app
+      - C:\Users\Arxon.ARXONTAS\Music:/music
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_DB: "0"
+    depends_on:
+      - redis
+      - backend
+
 volumes:
   frontend_node_modules:

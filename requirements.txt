@@ -3,3 +3,4 @@ djangorestframework==3.17.1
 django-cors-headers==4.9.0
 redis==7.4.0
 mutagen==1.47.0
+celery

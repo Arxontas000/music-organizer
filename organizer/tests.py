@@ -16,7 +16,7 @@ class ApiViewTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {"error": "path is required"})
 
-    @patch('music_organiser.views.scan_folder')
+    @patch('organizer.views.scan_folder')
     def test_scan_returns_grouped_tracks(self, mock_scan_folder):
         mock_scan_folder.return_value = [
             {
@@ -52,8 +52,8 @@ class ApiViewTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {"error": "path is required"})
 
-    @patch('music_organiser.views.preview_by_genre')
-    @patch('music_organiser.views.scan_folder')
+    @patch('organizer.views.preview_by_genre')
+    @patch('organizer.views.scan_folder')
     def test_preview_returns_generated_paths(self, mock_scan_folder, mock_preview):
         mock_scan_folder.return_value = [
             {
