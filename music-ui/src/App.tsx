@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CheckIcon } from "@heroicons/react/24/solid";
 
 type Track = {
   path: string;
@@ -22,31 +23,71 @@ function App() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const API_BASE = import.meta.env.VITE_API_BASE_URL;
+  const [progress, setProgress] = useState<number | null>(null);
+  const [completed, setCompleted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleScan = async () => {
+    setProgress(0);
+    setCompleted(false);
+    setError(null);
+
     if (!path) {
-      alert("Please enter a path first");
+      setError("Please enter a path first.");
       return;
     }
 
     setLoading(true);
+    setData(null);
 
     try {
+      // 1. Start scan
       const res = await fetch(
         `${API_BASE}/scan/?path=${encodeURIComponent(path)}`,
       );
       const json = await res.json();
-      setData(json);
+
+      const taskId = json.task_id;
+
+      if (!taskId) {
+        setError(json.error || "Failed to start scan.");
+        setLoading(false);
+        return;
+      }
+
+      // 2. Poll task status
+      const poll = async () => {
+        const res = await fetch(`${API_BASE}/task/${taskId}/`);
+        const statusData = await res.json();
+
+        if (statusData.status === "SUCCESS") {
+          setProgress(100);
+          setData(statusData.result);
+          setLoading(false);
+          setCompleted(true);
+        } else if (statusData.status === "PROGRESS") {
+          setProgress(statusData.result?.progress || 0);
+          setTimeout(poll, 200);
+        } else if (statusData.status === "FAILURE") {
+          console.error("Task failed:", statusData);
+          setError("Scan failed. Please try again.");
+          setLoading(false);
+        } else {
+          setTimeout(poll, 1000);
+        }
+      };
+
+      poll();
     } catch (err) {
       console.error("Scan error:", err);
-    } finally {
+      setError("Something went wrong while scanning.");
       setLoading(false);
     }
   };
 
   const handlePreview = async () => {
     if (!path) {
-      alert("Please enter a path first");
+      setError("Please enter a path first.");
       return;
     }
 
@@ -121,7 +162,10 @@ function App() {
           placeholder="Enter folder path (e.g. C:\\Music)"
           value={path}
           onChange={(e) => setPath(e.target.value)}
-          className="w-full p-2 border rounded mb-4"
+          disabled={loading}
+          className={`w-full p-2 border rounded mb-4 ${
+            loading ? "bg-gray-200 cursor-not-allowed" : ""
+          }`}
         />
 
         <div className="flex gap-4 mb-4">
@@ -144,10 +188,36 @@ function App() {
           >
             {loading ? "Loading..." : "Preview"}
           </button>
+
+          {completed && !loading && (
+            <div className="flex items-center gap-1 text-green-600 font-semibold ml-2">
+              <CheckIcon className="w-5 h-5" />
+              <span>Completed</span>
+            </div>
+          )}
         </div>
 
         {loading && (
-          <div className="mb-4 text-blue-600 font-semibold">Processing...</div>
+          <div className="mb-4">
+            {progress !== null && progress > 0 && (
+              <div className="relative w-full bg-gray-200 rounded h-6 overflow-hidden">
+                <div
+                  className={`h-6 transition-all duration-300 flex items-center justify-center text-white text-sm font-semibold ${
+                    (progress || 0) > 80 ? "bg-green-500" : "bg-blue-500"
+                  }`}
+                  style={{ width: `${progress || 0}%` }}
+                >
+                  {progress}%
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
+            {error}
+          </div>
         )}
 
         {data && "error" in data ? (

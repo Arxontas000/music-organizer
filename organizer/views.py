@@ -81,5 +81,5 @@ class TaskStatusView(APIView):
         return Response({
             "task_id": task_id,
             "status": result.status,
-            "result": result.result if result.ready() else None
+            "result": result.result if result.status == "SUCCESS" else result.info
         })
