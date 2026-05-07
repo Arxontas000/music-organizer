@@ -102,6 +102,7 @@ function App() {
     } catch (err) {
       console.error("Preview error:", err);
     } finally {
+      setError(null);
       setLoading(false);
     }
   };

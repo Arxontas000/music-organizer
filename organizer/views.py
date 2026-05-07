@@ -70,6 +70,12 @@ class PreviewView(APIView):
             return error
 
         tracks = get_cached_scan(path)
+        if not tracks:
+            return Response(
+                {"error": "No scan data found. Please scan first."},
+                status=400
+            )
+
         preview = preview_by_genre(tracks)
 
         return Response({"preview": preview})
@@ -82,4 +88,28 @@ class TaskStatusView(APIView):
             "task_id": task_id,
             "status": result.status,
             "result": result.result if result.status == "SUCCESS" else result.info
+        })
+
+class ApplyView(APIView):
+    def post(self, request):
+        path, error = get_valid_path_or_error(request)
+        if error:
+            return error
+
+        tracks = get_cached_scan(path)
+
+        if not tracks:
+            return Response(
+                {"error": "No scan data found. Please scan first."},
+                status=400
+            )
+
+        preview = preview_by_genre(tracks)
+
+        from .scanner import apply_preview
+        result = apply_preview(preview)
+
+        return Response({
+            "status": "completed",
+            "result": result
         })

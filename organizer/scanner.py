@@ -182,22 +182,112 @@ def preview_by_genre(tracks):
     if not base_dir:
         base_dir = "C:\\All Music" if os.name == "nt" else "/music-output"
 
+    seen_destinations = {}  # 🔥 track duplicates
+
     for track in tracks:
         source = track["path"]
         genre = track["genre"]
         artist = track["artist"]
         title = track["title"]
 
-        # ✅ get original extension (.mp3, .flac, etc.)
+        # keep original extension
         _, ext = os.path.splitext(source)
 
         filename = f"{title}{ext}"
-
         destination = os.path.join(base_dir, genre, artist, filename)
+
+        # validation
+        validation = validate_destination(source, destination)
+
+        # duplicate detection
+        duplicate = False
+        duplicate_of = None
+
+        if destination in seen_destinations:
+            duplicate = True
+            duplicate_of = seen_destinations[destination]
+            validation["conflict"] = True  # optional but useful
+        else:
+            seen_destinations[destination] = source
 
         preview.append({
             "from": source,
             "to": destination,
+            "validation": validation,
+            "duplicate": duplicate,
+            "duplicate_of": duplicate_of
         })
 
     return preview
+
+def validate_destination(src, dest):
+    issues = {
+        "exists": False,
+        "same_file": False,
+        "conflict": False,
+        "valid_path": True,
+    }
+
+    # normalize paths
+    src_abs = os.path.normcase(os.path.abspath(src))
+    dest_abs = os.path.normcase(os.path.abspath(dest))
+
+    if src_abs == dest_abs:
+        issues["same_file"] = True
+
+    if os.path.exists(dest):
+        issues["exists"] = True
+        issues["conflict"] = True
+
+    # safer invalid chars (exclude :)
+    invalid_chars = ['<', '>', '"', '|', '?', '*']
+    if any(char in dest for char in invalid_chars):
+        issues["valid_path"] = False
+
+    return issues
+
+import os
+import shutil
+
+def apply_preview(preview):
+    results = {
+        "moved": [],
+        "skipped": []
+    }
+
+    for item in preview:
+        src = item["from"]
+        dest = item["to"]
+        validation = item.get("validation", {})
+        duplicate = item.get("duplicate", False)
+
+        # 🚫 safety checks
+        if (
+            not validation.get("valid_path", True)
+            or validation.get("conflict", False)
+            or duplicate
+        ):
+            results["skipped"].append({
+                "from": src,
+                "to": dest,
+                "reason": "conflict_or_invalid"
+            })
+            continue
+
+        try:
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            shutil.move(src, dest)
+
+            results["moved"].append({
+                "from": src,
+                "to": dest
+            })
+
+        except Exception as e:
+            results["skipped"].append({
+                "from": src,
+                "to": dest,
+                "reason": str(e)
+            })
+
+    return results
